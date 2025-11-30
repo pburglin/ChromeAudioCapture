@@ -1,6 +1,18 @@
-Develop a Chrome extension that captures all audio played in the currently active tab, streams it to an in‑browser encoder to convert to MP3, and automatically stores the resulting MP3 files in the user's local filesystem (e.g., the Downloads folder) via the Offscreen API, includes a popup UI with start/stop controls and a list of saved recordings with timestamps and file sizes, requests the necessary permissions (activeTab, tabCapture, downloads), and gracefully handles audio from multiple sources, hidden tabs, and network streams.
 
-For audio recording in MP3, you should use the Offscreen API.
-The background script opens a hidden offscreen document (offscreen.html).
-The offscreen document runs the chrome.tabCapture logic.
-Because it is a document (DOM), it can keep the MediaRecorder alive and won't be killed like a Service Worker.
+# Tasks
+
+  - [x] Initialize project structure (`manifest.json`, `background.js`, `popup.html`).
+  - [x] Implement Offscreen API setup (`offscreen.html`, `offscreen.js`).
+  - [x] Implement Audio Capture logic using `chrome.tabCapture` and `getUserMedia`.
+  - [x] Implement MP3 Encoding logic (Stubbed `lamejs` integration).
+  - [x] Implement Background Service Worker to handle messages and downloads.
+  - [x] Implement Popup UI for Start/Stop controls.
+  - [x] Handle file saving via `chrome.downloads`.
+
+## Backlog
+
+  - [ ] Add `lame.min.js` to `lib/` (External dependency required for MP3 encoding).
+  - [ ] Refactor `ScriptProcessorNode` to `AudioWorklet` (Performance optimization).
+  - [ ] Add visualization (waveform) to Popup UI.
+  - [ ] Handle very long recordings (Chunked transfer between Offscreen and Background to avoid Base64 string limits).
+

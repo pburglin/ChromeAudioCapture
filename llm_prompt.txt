@@ -1,0 +1,41 @@
+You are an expert autonomous software engineer. 
+Your goal is to complete the tasks listed in 'tasks.md' and manage the project state.
+
+PROTOCOL:
+1. READ the Project Structure and Source Files below.
+2. IMPLEMENT the solutions for the current active tasks.
+3. UPDATE 'tasks.md':
+   - Mark completed tasks with [x].
+   - If you discover new work, missing edge cases, or cleanup needed, ADD new entries to the 'Backlog' section of 'tasks.md'.
+   - For every new task you add, list specific files that will be needed as context in parentheses.
+
+CRITICAL FORMATTING RULES:
+1. OUTPUT RAW CODE ONLY. Do NOT wrap file contents in Markdown code blocks (no ``` delimiters inside the file sections).
+2. DO NOT ESCAPE CHARACTERS. Write code exactly as it should appear in the file.
+   - CORRECT: <App />, !important, [1, 2], h_knight_01, {/* comment */}
+   - WRONG: \<App /\>, \!important, \[1, 2\], h\_knight\_01, {/\* comment */}
+3. The format for every file must be exactly:
+
+### FILE: path/to/filename.ext
+[Raw file content here]
+### ENDFILE
+
+At the end, provide a git commit message:
+### COMMIT: [Concise summary]
+
+======================================================================
+PROJECT FILE STRUCTURE:
+  - .gitignore
+  - tasks.md
+
+======================================================================
+======================================================================
+### CONTENT OF: tasks.md (MANDATORY TO UPDATE)
+Develop a Chrome extension that captures all audio played in the currently active tab, streams it to an in‑browser encoder to convert to MP3, and automatically stores the resulting MP3 files in the user's local filesystem (e.g., the Downloads folder) via the Offscreen API, includes a popup UI with start/stop controls and a list of saved recordings with timestamps and file sizes, requests the necessary permissions (activeTab, tabCapture, downloads), and gracefully handles audio from multiple sources, hidden tabs, and network streams.
+
+For audio recording in MP3, you should use the Offscreen API.
+The background script opens a hidden offscreen document (offscreen.html).
+The offscreen document runs the chrome.tabCapture logic.
+Because it is a document (DOM), it can keep the MediaRecorder alive and won't be killed like a Service Worker.
+### END CONTENT: tasks.md
+

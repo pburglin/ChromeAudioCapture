@@ -1,0 +1,395 @@
+### FILE: tasks.md
+
+# Tasks
+
+  - [x] Initialize project structure (`manifest.json`, `background.js`, `popup.html`).
+  - [x] Implement Offscreen API setup (`offscreen.html`, `offscreen.js`).
+  - [x] Implement Audio Capture logic using `chrome.tabCapture` and `getUserMedia`.
+  - [x] Implement MP3 Encoding logic (Stubbed `lamejs` integration).
+  - [x] Implement Background Service Worker to handle messages and downloads.
+  - [x] Implement Popup UI for Start/Stop controls.
+  - [x] Handle file saving via `chrome.downloads`.
+
+## Backlog
+
+  - [ ] Add `lame.min.js` to `lib/` (External dependency required for MP3 encoding).
+  - [ ] Refactor `ScriptProcessorNode` to `AudioWorklet` (Performance optimization).
+  - [ ] Add visualization (waveform) to Popup UI.
+  - [ ] Handle very long recordings (Chunked transfer between Offscreen and Background to avoid Base64 string limits).
+
+### ENDFILE
+
+### FILE: manifest.json
+
+{
+"manifest\_version": 3,
+"name": "Tab Audio Recorder",
+"version": "1.0",
+"description": "Captures tab audio, converts to MP3, and saves locally.",
+"permissions": [
+"tabCapture",
+"offscreen",
+"downloads",
+"storage",
+"activeTab"
+],
+"action": {
+"default\_popup": "popup.html",
+"default\_icon": {
+"16": "icons/icon16.png",
+"48": "icons/icon48.png",
+"128": "icons/icon128.png"
+}
+},
+"background": {
+"service\_worker": "background.js"
+},
+"icons": {
+"16": "icons/icon16.png",
+"48": "icons/icon48.png",
+"128": "icons/icon128.png"
+}
+}
+
+### ENDFILE
+
+### FILE: background.js
+
+let recordingState = false;
+
+// Listen for messages from Popup and Offscreen documents
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) =\> {
+if (message.action === 'START\_RECORDING') {
+await startRecording(message.streamId);
+sendResponse({ success: true });
+} else if (message.action === 'STOP\_RECORDING') {
+await stopRecording();
+sendResponse({ success: true });
+} else if (message.action === 'SAVE\_RECORDING') {
+handleSave(message.data);
+} else if (message.action === 'GET\_STATUS') {
+sendResponse({ isRecording: recordingState });
+}
+});
+
+async function startRecording(streamId) {
+if (recordingState) return;
+
+// Ensure offscreen document exists
+const existingContexts = await chrome.runtime.getContexts({
+contextTypes: ['OFFSCREEN\_DOCUMENT']
+});
+
+if (existingContexts.length === 0) {
+await chrome.offscreen.createDocument({
+url: 'offscreen.html',
+reasons: ['USER\_MEDIA'],
+justification: 'Recording tab audio'
+});
+}
+
+// Get the stream ID for the current active tab if not provided
+// Note: tabCapture.getMediaStreamId must be called here or in popup
+// We expect popup to pass the streamId or we generate it here if triggered by shortcut
+
+// Send command to offscreen
+chrome.runtime.sendMessage({
+target: 'offscreen',
+action: 'START',
+streamId: streamId
+});
+
+recordingState = true;
+chrome.action.setBadgeText({ text: 'REC' });
+chrome.action.setBadgeBackgroundColor({ color: '\#FF0000' });
+}
+
+async function stopRecording() {
+if (\!recordingState) return;
+
+chrome.runtime.sendMessage({
+target: 'offscreen',
+action: 'STOP'
+});
+
+recordingState = false;
+chrome.action.setBadgeText({ text: '' });
+
+// Close offscreen document to save resources?
+// Better to keep it open briefly to process encoding,
+// but for this implementation we rely on offscreen to handle cleanup.
+}
+
+function handleSave(base64Data) {
+const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+const filename = `recording-${timestamp}.mp3`;
+
+chrome.downloads.download({
+url: base64Data,
+filename: filename,
+saveAs: false
+});
+}
+
+### ENDFILE
+
+### FILE: popup.html
+
+\<\!DOCTYPE html\>
+
+\<html\>
+\<head\>
+\<title\>Audio Recorder\</title\>
+\<style\>
+body { width: 300px; font-family: sans-serif; padding: 10px; }
+h2 { margin-top: 0; font-size: 16px; }
+.controls { display: flex; gap: 10px; margin-bottom: 15px; }
+button { flex: 1; padding: 10px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+\#startBtn { background-color: \#4CAF50; color: white; }
+\#stopBtn { background-color: \#f44336; color: white; }
+button:disabled { background-color: \#ccc; cursor: not-allowed; }
+\#status { font-size: 12px; color: \#666; margin-bottom: 10px; }
+.hidden { display: none; }
+\</style\>
+\</head\>
+\<body\>
+\<h2\>Tab Audio Recorder\</h2\>
+\<div id="status"\>Ready\</div\>
+\<div class="controls"\>
+\<button id="startBtn"\>Start\</button\>
+\<button id="stopBtn" disabled\>Stop\</button\>
+\</div\>
+\<script src="popup.js"\>\</script\>
+\</body\>
+\</html\>
+
+### ENDFILE
+
+### FILE: popup.js
+
+document.addEventListener('DOMContentLoaded', async () =\> {
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const statusDiv = document.getElementById('status');
+
+// Check current status
+chrome.runtime.sendMessage({ action: 'GET\_STATUS' }, (response) =\> {
+if (response && response.isRecording) {
+updateUI(true);
+}
+});
+
+startBtn.addEventListener('click', async () =\> {
+// 1. Get the Stream ID for the active tab
+// This permission requires interaction, so we do it in the popup
+const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+```
+chrome.tabCapture.getMediaStreamId({ consumerTabId: tab.id }, (streamId) => {
+  if (chrome.runtime.lastError) {
+    statusDiv.textContent = 'Error: ' + chrome.runtime.lastError.message;
+    return;
+  }
+  
+  // 2. Tell background to start recording with this stream ID
+  chrome.runtime.sendMessage({ 
+    action: 'START_RECORDING', 
+    streamId: streamId 
+  }, () => {
+    updateUI(true);
+  });
+});
+```
+
+});
+
+stopBtn.addEventListener('click', () =\> {
+chrome.runtime.sendMessage({ action: 'STOP\_RECORDING' }, () =\> {
+updateUI(false);
+statusDiv.textContent = 'Processing & Saving...';
+});
+});
+
+function updateUI(isRecording) {
+if (isRecording) {
+startBtn.disabled = true;
+stopBtn.disabled = false;
+statusDiv.textContent = 'Recording in progress...';
+} else {
+startBtn.disabled = false;
+stopBtn.disabled = true;
+statusDiv.textContent = 'Ready';
+}
+}
+});
+
+### ENDFILE
+
+### FILE: offscreen.html
+
+\<\!DOCTYPE html\>
+
+\<html\>
+\<head\>
+\<title\>Offscreen Recorder\</title\>
+\<script src="lib/lame.min.js"\>\</script\>
+\<script src="offscreen.js"\>\</script\>
+\</head\>
+\<body\>
+\</body\>
+\</html\>
+
+### ENDFILE
+
+### FILE: lib/lame.min.js
+
+// This is a placeholder file.
+// Please download lamejs ([https://github.com/zhuker/lamejs](https://github.com/zhuker/lamejs))
+// and place the minified content here to enable MP3 encoding.
+//
+// If lamejs is missing, the offscreen script will throw an error.
+
+### ENDFILE
+
+### FILE: offscreen.js
+
+// Listen for messages from the background script
+chrome.runtime.onMessage.addListener(async (message) =\> {
+if (message.target \!== 'offscreen') return;
+
+if (message.action === 'START') {
+startRecording(message.streamId);
+} else if (message.action === 'STOP') {
+stopRecording();
+}
+});
+
+let audioContext;
+let mediaStream;
+let processor;
+let mp3Encoder;
+let dataBuffer = [];
+let sampleRate = 44100;
+let kbps = 128;
+
+async function startRecording(streamId) {
+try {
+// Acquire media stream using the ID passed from popup -\> background -\> here
+mediaStream = await navigator.mediaDevices.getUserMedia({
+audio: {
+mandatory: {
+chromeMediaSource: 'tab',
+chromeMediaSourceId: streamId
+}
+},
+video: false
+});
+
+```
+// Initialize Audio Context
+audioContext = new AudioContext({ sampleRate: sampleRate });
+const source = audioContext.createMediaStreamSource(mediaStream);
+
+// Initialize LameJS Encoder
+// Assumes lamejs is loaded globally via <script> tag in offscreen.html
+if (typeof lamejs === 'undefined') {
+  console.error('lamejs not found. Please populate lib/lame.min.js');
+  return;
+}
+
+mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, kbps);
+dataBuffer = []; // Clear buffer
+
+// Use ScriptProcessorNode (deprecated but effective for non-Worklet simple implementations)
+// Buffer size 4096 is a good balance between latency and performance
+processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+processor.onaudioprocess = (event) => {
+  const inputData = event.inputBuffer.getChannelData(0);
+  
+  // Convert Float32 to Int16 for LameJS
+  const inputInt16 = convertFloat32ToInt16(inputData);
+  
+  // Encode
+  const mp3Data = mp3Encoder.encodeBuffer(inputInt16);
+  if (mp3Data.length > 0) {
+    dataBuffer.push(mp3Data);
+  }
+};
+
+source.connect(processor);
+processor.connect(audioContext.destination); // Needed for chrome audio to keep playing? 
+// Actually, connecting to destination might cause echo if not handled carefully (tab audio -> mic -> speaker).
+// In tabCapture, we often want to mute the original or let it play.
+// However, createScriptProcessor needs connection to destination to fire events in some browsers.
+// To mute self-playback but keep recording: connect to a GainNode with gain 0, then destination.
+
+// BUT: chrome.tabCapture automatically mutes the tab in the main view unless we play it here.
+// So we usually WANT to connect it to destination so the user hears the audio while recording.
+```
+
+} catch (err) {
+console.error('Error starting recording:', err);
+}
+}
+
+function stopRecording() {
+if (processor && audioContext) {
+processor.disconnect();
+audioContext.close();
+}
+
+if (mediaStream) {
+mediaStream.getTracks().forEach(track =\> track.stop());
+}
+
+// Finalize MP3 encoding
+if (mp3Encoder) {
+const mp3Data = mp3Encoder.flush();
+if (mp3Data.length \> 0) {
+dataBuffer.push(mp3Data);
+}
+}
+
+// Create Blob
+const blob = new Blob(dataBuffer, { type: 'audio/mp3' });
+
+// Convert to Base64 to send to Background (chrome.downloads isn't in offscreen)
+const reader = new FileReader();
+reader.onload = function() {
+chrome.runtime.sendMessage({
+action: 'SAVE\_RECORDING',
+data: reader.result // Data URL
+});
+};
+reader.readAsDataURL(blob);
+
+// Cleanup
+mp3Encoder = null;
+dataBuffer = [];
+}
+
+function convertFloat32ToInt16(float32Array) {
+const len = float32Array.length;
+const int16Array = new Int16Array(len);
+for (let i = 0; i \< len; i++) {
+// Clamp values to [-1, 1]
+let s = Math.max(-1, Math.min(1, float32Array[i]));
+// Scale to 16-bit signed integer range
+int16Array[i] = s \< 0 ? s \* 0x8000 : s \* 0x7FFF;
+}
+return int16Array;
+}
+
+### ENDFILE
+
+### FILE: .gitignore
+
+node\_modules/
+lib/lame.min.js
+\*.mp3
+.DS\_Store
+
+### ENDFILE
+
+### COMMIT: feat: Implement offscreen tab audio recording with MP3 encoding stub

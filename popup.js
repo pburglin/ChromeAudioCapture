@@ -1,0 +1,55 @@
+
+document.addEventListener('DOMContentLoaded', async () => {
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const statusDiv = document.getElementById('status');
+
+// Check current status
+chrome.runtime.sendMessage({ action: 'GET_STATUS' }, (response) => {
+if (response && response.isRecording) {
+updateUI(true);
+}
+});
+
+startBtn.addEventListener('click', async () => {
+// 1. Get the Stream ID for the active tab
+// This permission requires interaction, so we do it in the popup
+const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+chrome.tabCapture.getMediaStreamId({ consumerTabId: tab.id }, (streamId) => {
+  if (chrome.runtime.lastError) {
+    statusDiv.textContent = 'Error: ' + chrome.runtime.lastError.message;
+    return;
+  }
+  
+  // 2. Tell background to start recording with this stream ID
+  chrome.runtime.sendMessage({ 
+    action: 'START_RECORDING', 
+    streamId: streamId 
+  }, () => {
+    updateUI(true);
+  });
+});
+
+});
+
+stopBtn.addEventListener('click', () => {
+chrome.runtime.sendMessage({ action: 'STOP_RECORDING' }, () => {
+updateUI(false);
+statusDiv.textContent = 'Processing & Saving...';
+});
+});
+
+function updateUI(isRecording) {
+if (isRecording) {
+startBtn.disabled = true;
+stopBtn.disabled = false;
+statusDiv.textContent = 'Recording in progress...';
+} else {
+startBtn.disabled = false;
+stopBtn.disabled = true;
+statusDiv.textContent = 'Ready';
+}
+}
+});
+

@@ -11,7 +11,7 @@
 
 ## Backlog
 
-  - [ ] Add `lame.min.js` to `lib/` (External dependency required for MP3 encoding).
+  - [x] Add `lame.min.js` to `lib/` (External dependency required for MP3 encoding).
   - [ ] Refactor `ScriptProcessorNode` to `AudioWorklet` (Performance optimization).
   - [ ] Add visualization (waveform) to Popup UI.
   - [ ] Handle very long recordings (Chunked transfer between Offscreen and Background to avoid Base64 string limits).

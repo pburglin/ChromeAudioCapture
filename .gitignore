@@ -1,6 +1,7 @@
-
 node_modules/
 lib/lame.min.js
 *.mp3
 .DS_Store
-
+llm_prompt.txt
+llm_response.txt
+.llm_temp

@@ -1,40 +1,3 @@
-### FILE: recorder-processor.js
-
-class RecorderProcessor extends AudioWorkletProcessor {
-constructor() {
-super();
-this.bufferSize = 4096;
-this.\_buffer = new Float32Array(this.bufferSize);
-this.\_bytesWritten = 0;
-}
-
-process(inputs, outputs, parameters) {
-const input = inputs[0];
-// input is array of channels, input[0] is Float32Array of samples
-if (input && input.length \> 0) {
-const channelData = input[0];
-
-```
-  for (let i = 0; i < channelData.length; i++) {
-    this._buffer[this._bytesWritten++] = channelData[i];
-
-    if (this._bytesWritten >= this.bufferSize) {
-      // Send a copy of the buffer to the main thread
-      this.port.postMessage(this._buffer.slice(0, this.bufferSize));
-      this._bytesWritten = 0;
-    }
-  }
-}
-return true; // Keep processor alive
-```
-
-}
-}
-
-registerProcessor('recorder-processor', RecorderProcessor);
-
-### ENDFILE
-
 ### FILE: offscreen.js
 
 // Listen for messages from the background script
@@ -58,46 +21,49 @@ let kbps = 128;
 
 async function startRecording(streamId) {
 try {
-// Acquire media stream using the ID passed from popup -\> background -\> here
-mediaStream = await navigator.mediaDevices.getUserMedia({
-audio: {
-mandatory: {
-chromeMediaSource: 'tab',
-chromeMediaSourceId: streamId
+if (typeof lamejs === 'undefined') {
+throw new Error('lamejs library not found. Please ensure lib/lame.min.js is populated.');
 }
-},
-video: false
-});
 
 ```
+// Acquire media stream
+mediaStream = await navigator.mediaDevices.getUserMedia({
+  audio: {
+    mandatory: {
+      chromeMediaSource: 'tab',
+      chromeMediaSourceId: streamId
+    }
+  },
+  video: false
+});
+
 // Initialize Audio Context
-audioContext = new AudioContext({ sampleRate: sampleRate });
+// Use the system sample rate to avoid resampling artifacts/issues
+audioContext = new AudioContext(); 
+sampleRate = audioContext.sampleRate;
+await audioContext.resume();
 
 // Load the AudioWorklet processor
-await audioContext.audioWorklet.addModule('recorder-processor.js');
+try {
+  await audioContext.audioWorklet.addModule('recorder-processor.js');
+} catch (e) {
+  throw new Error('Failed to load recorder-processor.js: ' + e.message);
+}
 
 const source = audioContext.createMediaStreamSource(mediaStream);
 
-// Initialize LameJS Encoder
-if (typeof lamejs === 'undefined') {
-  console.error('lamejs not found. Please populate lib/lame.min.js');
-  return;
-}
-
 mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, kbps);
-dataBuffer = []; // Clear buffer
+dataBuffer = []; 
 
-// Create AudioWorkletNode
 audioWorkletNode = new AudioWorkletNode(audioContext, 'recorder-processor');
 
-// Handle audio data from the worklet
 audioWorkletNode.port.onmessage = (event) => {
-  const inputData = event.data; // Float32Array from processor
-  
-  // Convert Float32 to Int16 for LameJS
+  const inputData = event.data;
+  if (!inputData) return;
+
   const inputInt16 = convertFloat32ToInt16(inputData);
   
-  // Encode
+  // lamejs expects Int16Array
   const mp3Data = mp3Encoder.encodeBuffer(inputInt16);
   if (mp3Data.length > 0) {
     dataBuffer.push(mp3Data);
@@ -105,11 +71,17 @@ audioWorkletNode.port.onmessage = (event) => {
 };
 
 source.connect(audioWorkletNode);
-audioWorkletNode.connect(audioContext.destination); // Play audio to user while recording
+audioWorkletNode.connect(audioContext.destination);
+
+console.log('Recording started. Sample rate:', sampleRate);
 ```
 
 } catch (err) {
 console.error('Error starting recording:', err);
+chrome.runtime.sendMessage({
+action: 'ERROR',
+error: err.message
+});
 }
 }
 
@@ -117,11 +89,6 @@ function stopRecording() {
 if (audioWorkletNode) {
 audioWorkletNode.disconnect();
 audioWorkletNode = null;
-}
-
-if (audioContext) {
-audioContext.close();
-audioContext = null;
 }
 
 if (mediaStream) {
@@ -138,17 +105,28 @@ dataBuffer.push(mp3Data);
 mp3Encoder = null;
 }
 
-// Create Blob
+if (audioContext) {
+audioContext.close();
+audioContext = null;
+}
+
+if (dataBuffer.length === 0) {
+console.warn('Buffer is empty. No audio recorded.');
+chrome.runtime.sendMessage({
+action: 'ERROR',
+error: 'No audio data captured. Check if audio is playing or lamejs is working.'
+});
+return;
+}
+
 const blob = new Blob(dataBuffer, { type: 'audio/mp3' });
 
-// Convert to Base64 to send to Background
 const reader = new FileReader();
 reader.onload = function() {
 chrome.runtime.sendMessage({
 action: 'SAVE\_RECORDING',
-data: reader.result // Data URL
+data: reader.result
 });
-// Clear buffer after save
 dataBuffer = [];
 };
 reader.readAsDataURL(blob);
@@ -158,9 +136,7 @@ function convertFloat32ToInt16(float32Array) {
 const len = float32Array.length;
 const int16Array = new Int16Array(len);
 for (let i = 0; i \< len; i++) {
-// Clamp values to [-1, 1]
 let s = Math.max(-1, Math.min(1, float32Array[i]));
-// Scale to 16-bit signed integer range
 int16Array[i] = s \< 0 ? s \* 0x8000 : s \* 0x7FFF;
 }
 return int16Array;
@@ -168,25 +144,104 @@ return int16Array;
 
 ### ENDFILE
 
-### FILE: tasks.md
+### FILE: background.js
 
-# Tasks
+let recordingState = false;
 
-  - [x] Initialize project structure (`manifest.json`, `background.js`, `popup.html`).
-  - [x] Implement Offscreen API setup (`offscreen.html`, `offscreen.js`).
-  - [x] Implement Audio Capture logic using `chrome.tabCapture` and `getUserMedia`.
-  - [x] Implement MP3 Encoding logic (Stubbed `lamejs` integration).
-  - [x] Implement Background Service Worker to handle messages and downloads.
-  - [x] Implement Popup UI for Start/Stop controls.
-  - [x] Handle file saving via `chrome.downloads`.
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) =\> {
+if (message.action === 'START\_RECORDING') {
+await startRecording(message.streamId);
+sendResponse({ success: true });
+} else if (message.action === 'STOP\_RECORDING') {
+await stopRecording();
+sendResponse({ success: true });
+} else if (message.action === 'SAVE\_RECORDING') {
+handleSave(message.data);
+} else if (message.action === 'GET\_STATUS') {
+sendResponse({ isRecording: recordingState });
+} else if (message.action === 'ERROR') {
+console.error('Offscreen Error:', message.error);
+// Optionally notify user via badge or notification
+chrome.action.setBadgeText({ text: 'ERR' });
+chrome.action.setBadgeBackgroundColor({ color: '\#000000' });
+}
+});
 
-## Backlog
+async function startRecording(streamId) {
+if (recordingState) return;
 
-  - [x] Add `lame.min.js` to `lib/` (External dependency required for MP3 encoding).
-  - [x] Refactor `ScriptProcessorNode` to `AudioWorklet` (Performance optimization).
-  - [ ] Add visualization (waveform) to Popup UI.
-  - [ ] Handle very long recordings (Chunked transfer between Offscreen and Background to avoid Base64 string limits).
+const existingContexts = await chrome.runtime.getContexts({
+contextTypes: ['OFFSCREEN\_DOCUMENT']
+});
+
+if (existingContexts.length === 0) {
+await chrome.offscreen.createDocument({
+url: 'offscreen.html',
+reasons: ['USER\_MEDIA'],
+justification: 'Recording tab audio'
+});
+}
+
+chrome.runtime.sendMessage({
+target: 'offscreen',
+action: 'START',
+streamId: streamId
+});
+
+recordingState = true;
+chrome.action.setBadgeText({ text: 'REC' });
+chrome.action.setBadgeBackgroundColor({ color: '\#FF0000' });
+}
+
+async function stopRecording() {
+if (\!recordingState) return;
+
+chrome.runtime.sendMessage({
+target: 'offscreen',
+action: 'STOP'
+});
+
+recordingState = false;
+chrome.action.setBadgeText({ text: '' });
+}
+
+function handleSave(base64Data) {
+const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+const filename = `recording-${timestamp}.mp3`;
+
+chrome.downloads.download({
+url: base64Data,
+filename: filename,
+saveAs: false
+});
+}
 
 ### ENDFILE
 
-### COMMIT: refactor: replace ScriptProcessorNode with AudioWorklet for performance optimization
+### FILE: tasks.md
+
+# CRITICAL ERROR
+
+  - [x] The MP3 generated by this extension has zerp bytes. no errors shown in the browser console logs or in the UI.
+
+# Tasks
+
+  - [x] Initialize project structure (`manifest.json`, `background.js`, `popup.html`).
+  - [x] Implement Offscreen API setup (`offscreen.html`, `offscreen.js`).
+  - [x] Implement Audio Capture logic using `chrome.tabCapture` and `getUserMedia`.
+  - [x] Implement MP3 Encoding logic (Stubbed `lamejs` integration).
+  - [x] Implement Background Service Worker to handle messages and downloads.
+  - [x] Implement Popup UI for Start/Stop controls.
+  - [x] Handle file saving via `chrome.downloads`.
+
+## Backlog
+
+  - [x] Add `lame.min.js` to `lib/` (External dependency required for MP3 encoding).
+  - [x] Refactor `ScriptProcessorNode` to `AudioWorklet` (Performance optimization).
+  - [ ] Add visualization (waveform) to Popup UI.
+  - [ ] Handle very long recordings (Chunked transfer between Offscreen and Background to avoid Base64 string limits).
+  - [ ] Improve Error UI in Popup (currently errors only log to console/badge).
+
+### ENDFILE
+
+### COMMIT: fix: handle zero-byte mp3 issue by validating inputs and reporting errors to background

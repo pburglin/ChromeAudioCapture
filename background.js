@@ -1,7 +1,6 @@
 
 let recordingState = false;
 
-// Listen for messages from Popup and Offscreen documents
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 if (message.action === 'START_RECORDING') {
 await startRecording(message.streamId);
@@ -13,13 +12,17 @@ sendResponse({ success: true });
 handleSave(message.data);
 } else if (message.action === 'GET_STATUS') {
 sendResponse({ isRecording: recordingState });
+} else if (message.action === 'ERROR') {
+console.error('Offscreen Error:', message.error);
+// Optionally notify user via badge or notification
+chrome.action.setBadgeText({ text: 'ERR' });
+chrome.action.setBadgeBackgroundColor({ color: '\#000000' });
 }
 });
 
 async function startRecording(streamId) {
 if (recordingState) return;
 
-// Ensure offscreen document exists
 const existingContexts = await chrome.runtime.getContexts({
 contextTypes: ['OFFSCREEN_DOCUMENT']
 });
@@ -32,11 +35,6 @@ justification: 'Recording tab audio'
 });
 }
 
-// Get the stream ID for the current active tab if not provided
-// Note: tabCapture.getMediaStreamId must be called here or in popup
-// We expect popup to pass the streamId or we generate it here if triggered by shortcut
-
-// Send command to offscreen
 chrome.runtime.sendMessage({
 target: 'offscreen',
 action: 'START',
@@ -58,10 +56,6 @@ action: 'STOP'
 
 recordingState = false;
 chrome.action.setBadgeText({ text: '' });
-
-// Close offscreen document to save resources?
-// Better to keep it open briefly to process encoding,
-// but for this implementation we rely on offscreen to handle cleanup.
 }
 
 function handleSave(base64Data) {

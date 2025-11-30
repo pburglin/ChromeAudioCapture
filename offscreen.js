@@ -20,45 +20,48 @@ let kbps = 128;
 
 async function startRecording(streamId) {
 try {
-// Acquire media stream using the ID passed from popup -> background -> here
-mediaStream = await navigator.mediaDevices.getUserMedia({
-audio: {
-mandatory: {
-chromeMediaSource: 'tab',
-chromeMediaSourceId: streamId
+if (typeof lamejs === 'undefined') {
+throw new Error('lamejs library not found. Please ensure lib/lame.min.js is populated.');
 }
-},
-video: false
+
+// Acquire media stream
+mediaStream = await navigator.mediaDevices.getUserMedia({
+  audio: {
+    mandatory: {
+      chromeMediaSource: 'tab',
+      chromeMediaSourceId: streamId
+    }
+  },
+  video: false
 });
 
 // Initialize Audio Context
-audioContext = new AudioContext({ sampleRate: sampleRate });
+// Use the system sample rate to avoid resampling artifacts/issues
+audioContext = new AudioContext(); 
+sampleRate = audioContext.sampleRate;
+await audioContext.resume();
 
 // Load the AudioWorklet processor
-await audioContext.audioWorklet.addModule('recorder-processor.js');
+try {
+  await audioContext.audioWorklet.addModule('recorder-processor.js');
+} catch (e) {
+  throw new Error('Failed to load recorder-processor.js: ' + e.message);
+}
 
 const source = audioContext.createMediaStreamSource(mediaStream);
 
-// Initialize LameJS Encoder
-if (typeof lamejs === 'undefined') {
-  console.error('lamejs not found. Please populate lib/lame.min.js');
-  return;
-}
-
 mp3Encoder = new lamejs.Mp3Encoder(1, sampleRate, kbps);
-dataBuffer = []; // Clear buffer
+dataBuffer = []; 
 
-// Create AudioWorkletNode
 audioWorkletNode = new AudioWorkletNode(audioContext, 'recorder-processor');
 
-// Handle audio data from the worklet
 audioWorkletNode.port.onmessage = (event) => {
-  const inputData = event.data; // Float32Array from processor
-  
-  // Convert Float32 to Int16 for LameJS
+  const inputData = event.data;
+  if (!inputData) return;
+
   const inputInt16 = convertFloat32ToInt16(inputData);
   
-  // Encode
+  // lamejs expects Int16Array
   const mp3Data = mp3Encoder.encodeBuffer(inputInt16);
   if (mp3Data.length > 0) {
     dataBuffer.push(mp3Data);
@@ -66,10 +69,16 @@ audioWorkletNode.port.onmessage = (event) => {
 };
 
 source.connect(audioWorkletNode);
-audioWorkletNode.connect(audioContext.destination); // Play audio to user while recording
+audioWorkletNode.connect(audioContext.destination);
+
+console.log('Recording started. Sample rate:', sampleRate);
 
 } catch (err) {
 console.error('Error starting recording:', err);
+chrome.runtime.sendMessage({
+action: 'ERROR',
+error: err.message
+});
 }
 }
 
@@ -77,11 +86,6 @@ function stopRecording() {
 if (audioWorkletNode) {
 audioWorkletNode.disconnect();
 audioWorkletNode = null;
-}
-
-if (audioContext) {
-audioContext.close();
-audioContext = null;
 }
 
 if (mediaStream) {
@@ -98,17 +102,28 @@ dataBuffer.push(mp3Data);
 mp3Encoder = null;
 }
 
-// Create Blob
+if (audioContext) {
+audioContext.close();
+audioContext = null;
+}
+
+if (dataBuffer.length === 0) {
+console.warn('Buffer is empty. No audio recorded.');
+chrome.runtime.sendMessage({
+action: 'ERROR',
+error: 'No audio data captured. Check if audio is playing or lamejs is working.'
+});
+return;
+}
+
 const blob = new Blob(dataBuffer, { type: 'audio/mp3' });
 
-// Convert to Base64 to send to Background
 const reader = new FileReader();
 reader.onload = function() {
 chrome.runtime.sendMessage({
 action: 'SAVE_RECORDING',
-data: reader.result // Data URL
+data: reader.result
 });
-// Clear buffer after save
 dataBuffer = [];
 };
 reader.readAsDataURL(blob);
@@ -118,9 +133,7 @@ function convertFloat32ToInt16(float32Array) {
 const len = float32Array.length;
 const int16Array = new Int16Array(len);
 for (let i = 0; i < len; i++) {
-// Clamp values to [-1, 1]
 let s = Math.max(-1, Math.min(1, float32Array[i]));
-// Scale to 16-bit signed integer range
 int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
 }
 return int16Array;

@@ -36,22 +36,49 @@ updateUI(true);
 });
 });
 
-stopBtn.addEventListener('click', () => {
+stopBtn.addEventListener('click', async () => {
+console.log('Stop button clicked');
+statusDiv.textContent = 'Stopping...';
+
+// Send stop message multiple times to ensure it gets through
 chrome.runtime.sendMessage({ action: 'STOP_RECORDING' }, () => {
-updateUI(false);
-statusDiv.textContent = 'Processing & Saving...';
+// First attempt
+setTimeout(() => {
+chrome.runtime.sendMessage({ action: 'STOP_RECORDING' });
+}, 500);
+
+setTimeout(() => {
+chrome.runtime.sendMessage({ action: 'STOP_RECORDING' });
+}, 1000);
+
+setTimeout(() => {
+chrome.runtime.sendMessage({ action: 'STOP_RECORDING' });
+}, 1500);
 });
+updateUI(false);
 });
 
 function updateUI(isRecording) {
 if (isRecording) {
 startBtn.disabled = true;
 stopBtn.disabled = false;
-statusDiv.textContent = 'Recording in progress...';
+statusDiv.textContent = 'Recording...';
 } else {
 startBtn.disabled = false;
 stopBtn.disabled = true;
 statusDiv.textContent = 'Ready';
 }
 }
+
+// Check for recording state updates
+setInterval(() => {
+chrome.runtime.sendMessage({ action: 'GET_STATUS' }, (response) => {
+const isCurrentlyRecording = response && response.isRecording;
+const shouldShowRecording = isCurrentlyRecording && startBtn.disabled === false;
+
+if (shouldShowRecording) {
+updateUI(true);
+}
+});
+}, 1000);
 });

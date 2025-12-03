@@ -1,212 +1,73 @@
+
 <!DOCTYPE html>
 
 <html>
 <head>
 <title>Audio Recorder</title>
 <style>
-body { 
-    width: 340px; 
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-    padding: 16px; 
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    margin: 0;
-    color: white;
+body { width: 300px; font-family: sans-serif; padding: 10px; }
+h2 { margin-top: 0; font-size: 16px; }
+.controls { display: flex; gap: 10px; margin-bottom: 15px; }
+button { flex: 1; padding: 10px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; }
+\#startBtn { background-color: \#4CAF50; color: white; }
+\#stopBtn { background-color: \#f44336; color: white; }
+button:disabled { background-color: \#ccc; cursor: not-allowed; }
+\#status { font-size: 12px; color: \#666; margin-bottom: 10px; }
+.hidden { display: none; }
+
+/* Error UI Styles */
+#errorContainer {
+  background-color: #ffebee;
+  border: 1px solid #ef5350;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+}
+.error-content { flex: 1; }
+.error-title { color: #c62828; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 5px; }
+#errorMessage { color: #d32f2f; font-size: 11px; margin-top: 4px; word-break: break-word; }
+#dismissError {
+  background: none; border: none; color: #ef5350; cursor: pointer; font-size: 16px; padding: 0 0 0 8px; line-height: 1;
+}
+#dismissError:hover { color: #c62828; }
+
+/* Visualizer */
+canvas {
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    width: 100%;
+    height: 60px;
 }
 
-.container {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 12px;
-    padding: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-h2 { 
-    margin: 0 0 16px 0; 
-    font-size: 18px; 
-    font-weight: 600;
-    text-align: center;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-.warning {
-    background: rgba(255, 193, 7, 0.2);
-    border: 1px solid rgba(255, 193, 7, 0.5);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 16px;
-    font-size: 12px;
-    line-height: 1.4;
-}
-
-.warning::before {
-    content: "WARNING: ";
-    font-weight: bold;
-}
-
-.warning-title {
-    font-weight: 600;
-    margin-bottom: 4px;
-}
-
-.status {
-    text-align: center;
-    font-size: 14px;
-    margin-bottom: 16px;
-    padding: 8px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.1);
-    font-weight: 500;
-}
-
-.controls { 
-    display: flex; 
-    gap: 12px; 
-    margin-bottom: 12px;
-}
-
-button { 
-    flex: 1; 
-    padding: 12px 16px; 
-    cursor: pointer; 
-    border: none; 
-    border-radius: 8px; 
-    font-weight: 600; 
-    font-size: 14px;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-#startBtn { 
-    background: linear-gradient(135deg, #10b981, #059669); 
-    color: white; 
-}
-
-#startBtn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #059669, #047857);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-}
-
-#stopBtn { 
-    background: linear-gradient(135deg, #ef4444, #dc2626); 
-    color: white; 
-}
-
-#stopBtn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #dc2626, #b91c1c);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-}
-
-button:disabled { 
-    background: #6b7280; 
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.recording-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    font-size: 12px;
-    margin-bottom: 12px;
-}
-
-.recording-dot {
-    width: 8px;
-    height: 8px;
-    background: #ef4444;
-    border-radius: 50%;
-    animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-}
-
-.hidden {
-    display: none;
-}
-
-.error-container {
-    background: rgba(239, 68, 68, 0.2);
-    border: 1px solid rgba(239, 68, 68, 0.5);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 16px;
-}
-
-.error-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.error-title {
-    font-weight: 600;
-    font-size: 13px;
-    color: #fca5a5;
-}
-
-.error-dismiss {
-    background: transparent;
-    border: none;
-    color: #fca5a5;
-    cursor: pointer;
-    font-size: 18px;
-    padding: 0;
-    line-height: 1;
-    box-shadow: none;
-}
-
-.error-dismiss:hover {
-    color: white;
-}
-
-.error-message {
-    font-size: 12px;
-    line-height: 1.4;
-    color: #fecaca;
-    word-break: break-word;
-}
 </style>
 </head>
 <body>
-<div class="container">
-    <h2>Tab Audio Recorder</h2>
-    
-    <div class="error-container hidden" id="errorContainer">
-        <div class="error-header">
-            <span class="error-title">⚠️ Error</span>
-            <button class="error-dismiss" id="dismissError">×</button>
-        </div>
-        <div class="error-message" id="errorMessage"></div>
-    </div>
-    
-    <div class="warning">
-        Keep this extension popup open during recording to prevent Chrome from stopping the audio capture early.
-        <br/><br/>
-        This is a browser limitation - Chrome pauses background audio processing shortly after the popup loses focus.
-    </div>
-    
-    <div class="recording-indicator hidden" id="recordingIndicator">
-        <div class="recording-dot"></div>
-        <span>Recording in progress</span>
-    </div>
-    
-    <div id="status" class="status">Ready to record</div>
-    
-    <div class="controls">
-        <button id="startBtn">Start Recording</button>
-        <button id="stopBtn" disabled>Stop</button>
-    </div>
+<h2>Tab Audio Recorder</h2>
+
+<div id="errorContainer" class="hidden">
+<div class="error-content">
+<div class="error-title">⚠️ Error</div>
+<div id="errorMessage"></div>
+</div>
+<button id="dismissError" title="Dismiss">×</button>
+</div>
+
+<canvas id="visualizer" width="300" height="60"></canvas>
+
+<div id="status">Ready</div>
+<div id="recordingIndicator" class="hidden" style="color: red; font-size: 12px; margin-bottom: 5px;">
+● Recording in progress
+</div>
+
+<div class="controls">
+<button id="startBtn">Start</button>
+<button id="stopBtn" disabled>Stop</button>
 </div>
 <script src="popup.js"></script>
 </body>
 </html>
+

@@ -1,251 +1,208 @@
-
 <!DOCTYPE html>
 
 <html>
 <head>
-<title>Tab Audio Recorder</title>
+<title>Audio Recorder</title>
 <style>
-:root {
-\--primary-gradient: linear-gradient(135deg, \#667eea 0%, \#764ba2 100%);
-\--glass-bg: rgba(255, 255, 255, 0.1);
-\--glass-border: 1px solid rgba(255, 255, 255, 0.2);
-\--glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-\--text-color: \#ffffff;
-\--text-secondary: rgba(255, 255, 255, 0.7);
-\--danger-color: \#ff4b4b;
-\--success-color: \#00b894;
-}
-
-body {
-  width: 320px;
-  margin: 0;
-  padding: 0;
-  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background: var(--primary-gradient);
-  color: var(--text-color);
-  min-height: 400px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+body { 
+    width: 340px; 
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+    padding: 16px; 
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    margin: 0;
+    color: white;
 }
 
 .container {
-  width: 100%;
-  height: 100%;
-  padding: 20px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Glass Header */
-header {
-  text-align: center;
-  margin-bottom: 5px;
+h2 { 
+    margin: 0 0 16px 0; 
+    font-size: 18px; 
+    font-weight: 600;
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-h2 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+.warning {
+    background: rgba(255, 193, 7, 0.2);
+    border: 1px solid rgba(255, 193, 7, 0.5);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    line-height: 1.4;
 }
 
-/* Status Section */
-.status-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-radius: 12px;
-  border: var(--glass-border);
-  padding: 15px;
-  text-align: center;
-  box-shadow: var(--glass-shadow);
+.warning::before {
+    content: "WARNING: ";
+    font-weight: bold;
 }
 
-#status {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-  font-weight: 500;
+.warning-title {
+    font-weight: 600;
+    margin-bottom: 4px;
 }
 
-#recordingIndicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 75, 75, 0.2);
-  color: #ffcccc;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid rgba(255, 75, 75, 0.3);
+.status {
+    text-align: center;
+    font-size: 14px;
+    margin-bottom: 16px;
+    padding: 8px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    font-weight: 500;
 }
 
-.pulse-dot {
-  width: 8px;
-  height: 8px;
-  background-color: var(--danger-color);
-  border-radius: 50%;
-  display: inline-block;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(255, 75, 75, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }
-}
-
-/* Visualizer */
 .visualizer-container {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  overflow: hidden;
-  height: 60px;
-  border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    overflow: hidden;
+    height: 60px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255,255,255,0.1);
 }
 
 canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
-/* Controls */
-.controls {
-  display: flex;
-  gap: 12px;
-  margin-top: 5px;
+.controls { 
+    display: flex; 
+    gap: 12px; 
+    margin-bottom: 12px;
 }
 
-button {
-  flex: 1;
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+button { 
+    flex: 1; 
+    padding: 12px 16px; 
+    cursor: pointer; 
+    border: none; 
+    border-radius: 8px; 
+    font-weight: 600; 
+    font-size: 14px;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-button:active {
-  transform: translateY(1px);
+#startBtn { 
+    background: linear-gradient(135deg, #10b981, #059669); 
+    color: white; 
 }
 
-#startBtn {
-  background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
-  color: white;
+#startBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
 }
 
-#startBtn:hover {
-  box-shadow: 0 6px 12px rgba(150, 201, 61, 0.4);
-  filter: brightness(1.1);
+#stopBtn { 
+    background: linear-gradient(135deg, #ef4444, #dc2626); 
+    color: white; 
 }
 
-#startBtn:disabled {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.3);
-  box-shadow: none;
-  cursor: not-allowed;
+#stopBtn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
 }
 
-#stopBtn {
-  background: linear-gradient(135deg, #ff5f6d 0%, #ffc371 100%);
-  color: white;
+button:disabled { 
+    background: #6b7280; 
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-#stopBtn:hover {
-  box-shadow: 0 6px 12px rgba(255, 95, 109, 0.4);
-  filter: brightness(1.1);
+.recording-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 12px;
+    margin-bottom: 12px;
 }
 
-#stopBtn:disabled {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.3);
-  box-shadow: none;
-  cursor: not-allowed;
+.recording-dot {
+    width: 8px;
+    height: 8px;
+    background: #ef4444;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
 }
 
-/* Warning Notice */
-.warning-note {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
-  text-align: center;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 8px;
-  border-radius: 6px;
-  line-height: 1.4;
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.hidden {
+    display: none !important;
 }
 
 /* Error UI */
 #errorContainer {
-  background: rgba(255, 75, 75, 0.9);
-  border: 1px solid #ff0000;
-  border-radius: 8px;
-  padding: 10px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    background: rgba(255, 75, 75, 0.9);
+    border: 1px solid #ff0000;
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    margin-bottom: 16px;
 }
 
 .error-content { font-size: 12px; color: white; flex: 1; }
 #dismissError {
-  background: none; border: none; color: white;
-  font-size: 18px; cursor: pointer; padding: 0 5px;
-  opacity: 0.8;
+    background: none; border: none; color: white;
+    font-size: 18px; cursor: pointer; padding: 0 5px;
+    opacity: 0.8;
 }
 #dismissError:hover { opacity: 1; }
-
-.hidden { display: none !important; }
-
 </style>
 </head>
 <body>
 <div class="container">
-<header>
-<h2>🎙️ Tab Audio Recorder</h2>
-</header>
-
-<div id="errorContainer" class="hidden">
-  <div class="error-content">
-    <span style="font-weight: bold;">Error:</span> <span id="errorMessage"></span>
-  </div>
-  <button id="dismissError">×</button>
-</div>
-
-<div class="status-card">
-  <div id="status">Ready to capture</div>
-  <div id="recordingIndicator" class="hidden">
-    <span class="pulse-dot"></span> RECORDING
-  </div>
-</div>
-
-<div class="visualizer-container">
-  <canvas id="visualizer" width="280" height="60"></canvas>
-</div>
-
-<div class="controls">
-  <button id="startBtn">Start</button>
-  <button id="stopBtn" disabled>Stop</button>
-</div>
-
-<div class="warning-note">
-  For best results, ensure audio is playing before starting. 
-  Recordings are saved automatically to your Downloads folder.
-</div>
-
+    <h2>Tab Audio Recorder</h2>
+    
+    <div class="warning">
+        Keep this extension popup open during recording to prevent Chrome from stopping the audio capture early.
+        <br/><br/>
+        This is a browser limitation - Chrome pauses background audio processing when the popup loses focus.
+    </div>
+    
+    <div id="errorContainer" class="hidden" style="display: none;">
+        <div class="error-content">
+            <span style="font-weight: bold;">Error:</span> <span id="errorMessage"></span>
+        </div>
+        <button id="dismissError">X</button>
+    </div>
+    
+    <div class="recording-indicator hidden" id="recordingIndicator">
+        <div class="recording-dot"></div>
+        <span>Recording in progress</span>
+    </div>
+    
+    <div id="status" class="status">Ready to record</div>
+    
+    <div class="visualizer-container">
+        <canvas id="visualizer" width="280" height="60"></canvas>
+    </div>
+    
+    <div class="controls">
+        <button id="startBtn">Start Recording</button>
+        <button id="stopBtn" disabled>Stop</button>
+    </div>
 </div>
 <script src="popup.js"></script>
 </body>
 </html>
-

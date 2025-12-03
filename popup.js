@@ -13,6 +13,10 @@ const canvasCtx = canvas.getContext('2d');
 let visualizerPort = null;
 let animationId = null;
 
+// Ensure error container is hidden on initialization
+errorContainer.classList.add('hidden');
+errorMessage.textContent = '';
+
 // Clear canvas initially (Transparent for glass effect)
 canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -105,24 +109,31 @@ errorMessage.textContent = '';
 }
 
 function connectVisualizer() {
-if (visualizerPort) return;
+    if (visualizerPort) return;
 
-try {
-    visualizerPort = chrome.runtime.connect({ name: 'visualization' });
-    visualizerPort.onMessage.addListener((msg) => {
-        if (msg.type === 'VISUALIZER_DATA') {
-            if (animationId) cancelAnimationFrame(animationId);
-            animationId = requestAnimationFrame(() => drawVisualization(msg.data));
+    // Add a small delay to ensure offscreen document is ready
+    setTimeout(() => {
+        try {
+            visualizerPort = chrome.runtime.connect({ name: 'visualization' });
+            visualizerPort.onMessage.addListener((msg) => {
+                if (msg.type === 'VISUALIZER_DATA') {
+                    if (animationId) cancelAnimationFrame(animationId);
+                    animationId = requestAnimationFrame(() => drawVisualization(msg.data));
+                }
+            });
+            visualizerPort.onDisconnect.addListener(() => {
+                visualizerPort = null;
+                if (animationId) cancelAnimationFrame(animationId);
+                clearVisualization();
+            });
+            
+            // Clear any previous visualization data
+            clearVisualization();
+            console.log('Visualizer connected successfully');
+        } catch (e) {
+            console.error('Failed to connect visualizer:', e);
         }
-    });
-    visualizerPort.onDisconnect.addListener(() => {
-        visualizerPort = null;
-        if (animationId) cancelAnimationFrame(animationId);
-        clearVisualization();
-    });
-} catch (e) {
-    console.error('Failed to connect visualizer:', e);
-}
+    }, 500); // 500ms delay to ensure offscreen is ready
 
 }
 

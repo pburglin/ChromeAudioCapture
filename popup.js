@@ -13,9 +13,8 @@ const canvasCtx = canvas.getContext('2d');
 let visualizerPort = null;
 let animationId = null;
 
-// Clear canvas initially with white background
-canvasCtx.fillStyle = '\#ffffff';
-canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+// Clear canvas initially (Transparent for glass effect)
+canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
 
 // Check current status
 chrome.runtime.sendMessage({ action: 'GET_STATUS' }, (response) => {
@@ -39,7 +38,7 @@ chrome.runtime.sendMessage({ action: 'CLEAR_ERROR' });
 });
 
 startBtn.addEventListener('click', async () => {
-hideError(); // Clear any previous errors
+hideError();
 startBtn.disabled = true;
 statusDiv.textContent = 'Initializing...';
 
@@ -58,7 +57,6 @@ chrome.tabCapture.getMediaStreamId({
     action: 'START_RECORDING', 
     streamId: streamId 
   }, () => {
-    // UI update will happen via polling or immediate check
     updateUI(true);
     connectVisualizer();
   });
@@ -68,17 +66,15 @@ chrome.tabCapture.getMediaStreamId({
 
 stopBtn.addEventListener('click', async () => {
 stopBtn.disabled = true;
-statusDiv.textContent = 'Stopping & Saving...';
+statusDiv.textContent = 'Processing...';
 recordingIndicator.classList.add('hidden');
 
 chrome.runtime.sendMessage({ action: 'STOP_RECORDING' }, () => {
-   // Retry a few times to ensure delivery if needed, though usually one is enough
    setTimeout(() => chrome.runtime.sendMessage({ action: 'STOP_RECORDING' }), 500);
 });
 
 disconnectVisualizer();
 clearVisualization();
-// Final UI update will happen via polling when background confirms stop
 
 });
 
@@ -88,13 +84,11 @@ startBtn.disabled = true;
 stopBtn.disabled = false;
 statusDiv.textContent = 'Recording Active';
 recordingIndicator.classList.remove('hidden');
-startBtn.textContent = 'Recording...';
 } else {
 startBtn.disabled = false;
 stopBtn.disabled = true;
-statusDiv.textContent = 'Ready to record';
+statusDiv.textContent = 'Ready to capture';
 recordingIndicator.classList.add('hidden');
-startBtn.textContent = 'Start Recording';
 }
 }
 
@@ -117,7 +111,6 @@ try {
     visualizerPort = chrome.runtime.connect({ name: 'visualization' });
     visualizerPort.onMessage.addListener((msg) => {
         if (msg.type === 'VISUALIZER_DATA') {
-            // Use requestAnimationFrame for smoother drawing
             if (animationId) cancelAnimationFrame(animationId);
             animationId = requestAnimationFrame(() => drawVisualization(msg.data));
         }
@@ -145,8 +138,7 @@ animationId = null;
 }
 
 function clearVisualization() {
-canvasCtx.fillStyle = '\#ffffff';
-canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 function drawVisualization(data) {
@@ -154,37 +146,36 @@ const width = canvas.width;
 const height = canvas.height;
 const barWidth = (width / data.length);
 
-// Clear with white
-canvasCtx.fillStyle = '#ffffff';
-canvasCtx.fillRect(0, 0, width, height);
+// Clear canvas to transparent
+canvasCtx.clearRect(0, 0, width, height);
 
-// Bars Gradient
+// Create a bright, "electric" gradient for the bars to stand out against dark glass
 const gradient = canvasCtx.createLinearGradient(0, height, 0, 0);
-gradient.addColorStop(0, '#4CAF50'); // Green
-gradient.addColorStop(1, '#81C784'); // Lighter green
+gradient.addColorStop(0, '#00F260'); // Bright Green
+gradient.addColorStop(1, '#0575E6'); // Electric Blue
 canvasCtx.fillStyle = gradient;
 
 for (let i = 0; i < data.length; i++) {
     const value = data[i];
     const percent = value / 255;
-    const barHeight = Math.max(percent * height, 2); // Ensure at least 2px height showing
+    // Boost the height slightly for better visibility
+    const barHeight = Math.max((percent * height) * 1.2, 3); 
     
     const x = i * barWidth;
     const y = height - barHeight;
     
-    // Draw bar with slight padding between them
-    canvasCtx.fillRect(x, y, barWidth - 1, barHeight);
+    // Draw rounded bars
+    canvasCtx.fillRect(x + 1, y, barWidth - 2, barHeight);
 }
 
 }
 
-// Poll status periodically to update UI if closed/reopened
+// Poll status
 setInterval(() => {
 chrome.runtime.sendMessage({ action: 'GET_STATUS' }, (response) => {
 if (response) {
 const isCurrentlyRecording = response.isRecording;
 
-    // Sync UI state if it drifted
     if (isCurrentlyRecording && startBtn.disabled === false) {
        updateUI(true);
        connectVisualizer();
@@ -193,7 +184,6 @@ const isCurrentlyRecording = response.isRecording;
        disconnectVisualizer();
     }
     
-    // Show error if there's a new one and not currently showing one
     if (response.error && errorContainer.classList.contains('hidden')) {
       showError(response.error);
     }

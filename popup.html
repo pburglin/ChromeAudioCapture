@@ -3,83 +3,247 @@
 
 <html>
 <head>
-<title>Audio Recorder</title>
+<title>Tab Audio Recorder</title>
 <style>
-body { width: 300px; font-family: sans-serif; padding: 15px; box-sizing: border-box; }
-h2 { margin-top: 0; margin-bottom: 15px; font-size: 16px; text-align: center; }
+:root {
+\--primary-gradient: linear-gradient(135deg, \#667eea 0%, \#764ba2 100%);
+\--glass-bg: rgba(255, 255, 255, 0.1);
+\--glass-border: 1px solid rgba(255, 255, 255, 0.2);
+\--glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+\--text-color: \#ffffff;
+\--text-secondary: rgba(255, 255, 255, 0.7);
+\--danger-color: \#ff4b4b;
+\--success-color: \#00b894;
+}
 
-/* Controls */
-.controls { display: flex; gap: 10px; margin-top: 15px; }
-button { flex: 1; padding: 10px; cursor: pointer; border: none; border-radius: 4px; font-weight: bold; transition: background-color 0.2s; }
-#startBtn { background-color: #4CAF50; color: white; }
-#startBtn:hover { background-color: #45a049; }
-#stopBtn { background-color: #f44336; color: white; }
-#stopBtn:hover { background-color: #d32f2f; }
-button:disabled { background-color: #e0e0e0; color: #999; cursor: not-allowed; }
-
-/* Status & Indicator */
-#status-container { margin-bottom: 15px; text-align: center; }
-#status { font-size: 14px; color: #333; margin-bottom: 5px; font-weight: 500; }
-#recordingIndicator { color: #f44336; font-size: 12px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 5px; }
-.blink { animation: blinker 1.5s linear infinite; }
-@keyframes blinker { 50% { opacity: 0.5; } }
-
-.hidden { display: none !important; }
-
-/* Error UI Styles */
-#errorContainer {
-  background-color: #ffebee;
-  border: 1px solid #ef5350;
-  border-radius: 4px;
-  padding: 10px;
-  margin-bottom: 15px;
+body {
+  width: 320px;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--primary-gradient);
+  color: var(--text-color);
+  min-height: 400px;
   display: flex;
-  justify-content: space-between;
-  align-items: start;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
-.error-content { flex: 1; }
-.error-title { color: #c62828; font-weight: bold; font-size: 12px; display: flex; align-items: center; gap: 5px; margin-bottom: 5px; }
-#errorMessage { color: #d32f2f; font-size: 11px; line-height: 1.4; word-break: break-word; }
-#dismissError {
-  background: none; border: none; color: #ef5350; cursor: pointer; font-size: 18px; padding: 0; margin-left: 10px; line-height: 1;
+
+.container {
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
-#dismissError:hover { color: #c62828; }
+
+/* Glass Header */
+header {
+  text-align: center;
+  margin-bottom: 5px;
+}
+
+h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Status Section */
+.status-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 12px;
+  border: var(--glass-border);
+  padding: 15px;
+  text-align: center;
+  box-shadow: var(--glass-shadow);
+}
+
+#status {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+#recordingIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 75, 75, 0.2);
+  color: #ffcccc;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid rgba(255, 75, 75, 0.3);
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background-color: var(--danger-color);
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(255, 75, 75, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }
+}
 
 /* Visualizer */
-canvas {
-    display: block;
-    background-color: #ffffff;
-    border: 1px solid #eee;
-    border-radius: 4px;
-    width: 100%;
-    height: 60px;
+.visualizer-container {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+  height: 60px;
+  border: 1px solid rgba(255,255,255,0.1);
 }
+
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  gap: 12px;
+  margin-top: 5px;
+}
+
+button {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+#startBtn {
+  background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
+  color: white;
+}
+
+#startBtn:hover {
+  box-shadow: 0 6px 12px rgba(150, 201, 61, 0.4);
+  filter: brightness(1.1);
+}
+
+#startBtn:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+#stopBtn {
+  background: linear-gradient(135deg, #ff5f6d 0%, #ffc371 100%);
+  color: white;
+}
+
+#stopBtn:hover {
+  box-shadow: 0 6px 12px rgba(255, 95, 109, 0.4);
+  filter: brightness(1.1);
+}
+
+#stopBtn:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Warning Notice */
+.warning-note {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px;
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
+/* Error UI */
+#errorContainer {
+  background: rgba(255, 75, 75, 0.9);
+  border: 1px solid #ff0000;
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.error-content { font-size: 12px; color: white; flex: 1; }
+#dismissError {
+  background: none; border: none; color: white;
+  font-size: 18px; cursor: pointer; padding: 0 5px;
+  opacity: 0.8;
+}
+#dismissError:hover { opacity: 1; }
+
+.hidden { display: none !important; }
 
 </style>
 </head>
 <body>
-<h2>Tab Audio Recorder</h2>
+<div class="container">
+<header>
+<h2>🎙️ Tab Audio Recorder</h2>
+</header>
 
 <div id="errorContainer" class="hidden">
-<div class="error-content">
-<div class="error-title">⚠️ Error</div>
-<div id="errorMessage"></div>
-</div>
-<button id="dismissError" title="Dismiss">×</button>
-</div>
-
-<div id="status-container">
-<div id="status">Ready to record</div>
-<div id="recordingIndicator" class="hidden">
-<span class="blink">●</span> Recording in progress
-</div>
+  <div class="error-content">
+    <span style="font-weight: bold;">Error:</span> <span id="errorMessage"></span>
+  </div>
+  <button id="dismissError">×</button>
 </div>
 
-<canvas id="visualizer" width="270" height="60"></canvas>
+<div class="status-card">
+  <div id="status">Ready to capture</div>
+  <div id="recordingIndicator" class="hidden">
+    <span class="pulse-dot"></span> RECORDING
+  </div>
+</div>
+
+<div class="visualizer-container">
+  <canvas id="visualizer" width="280" height="60"></canvas>
+</div>
 
 <div class="controls">
-<button id="startBtn">Start Recording</button>
-<button id="stopBtn" disabled>Stop</button>
+  <button id="startBtn">Start</button>
+  <button id="stopBtn" disabled>Stop</button>
+</div>
+
+<div class="warning-note">
+  For best results, ensure audio is playing before starting. 
+  Recordings are saved automatically to your Downloads folder.
+</div>
+
 </div>
 <script src="popup.js"></script>
 </body>

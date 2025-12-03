@@ -129,8 +129,51 @@ button:disabled {
     100% { opacity: 1; }
 }
 
-.hidden { 
-    display: none; 
+.hidden {
+    display: none;
+}
+
+.error-container {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.error-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.error-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: #fca5a5;
+}
+
+.error-dismiss {
+    background: transparent;
+    border: none;
+    color: #fca5a5;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0;
+    line-height: 1;
+    box-shadow: none;
+}
+
+.error-dismiss:hover {
+    color: white;
+}
+
+.error-message {
+    font-size: 12px;
+    line-height: 1.4;
+    color: #fecaca;
+    word-break: break-word;
 }
 </style>
 </head>
@@ -138,9 +181,18 @@ button:disabled {
 <div class="container">
     <h2>Tab Audio Recorder</h2>
     
+    <div class="error-container hidden" id="errorContainer">
+        <div class="error-header">
+            <span class="error-title">⚠️ Error</span>
+            <button class="error-dismiss" id="dismissError">×</button>
+        </div>
+        <div class="error-message" id="errorMessage"></div>
+    </div>
+    
     <div class="warning">
-        <div class="warning-title">Important:</div>
-        Keep this extension popup open during recording to prevent Chrome from stopping the audio capture early. This is a browser limitation - Chrome pauses background audio processing when the popup loses focus.
+        Keep this extension popup open during recording to prevent Chrome from stopping the audio capture early.
+        <br/><br/>
+        This is a browser limitation - Chrome pauses background audio processing shortly after the popup loses focus.
     </div>
     
     <div class="recording-indicator hidden" id="recordingIndicator">

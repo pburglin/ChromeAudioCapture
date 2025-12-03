@@ -107,30 +107,68 @@ function stopRecording() {
   }
 }
 
-function processAndSendData() {
+const CHUNK_SIZE = 1024 * 1024; // 1MB chunks to avoid Base64 string limits
+
+async function processAndSendData() {
   console.log('Processing data, chunks:', recordedChunks.length);
   if (recordedChunks.length === 0) {
     console.log('No recorded chunks found');
     isRecording = false;
+    chrome.runtime.sendMessage({
+      action: 'ERROR',
+      error: 'No audio data was recorded'
+    });
     return;
   }
 
   const blob = new Blob(recordedChunks, { type: 'audio/webm;codecs=opus' });
   console.log('Created blob, size:', blob.size);
-  const reader = new FileReader();
-  reader.onload = function() {
-    console.log('FileReader loaded, sending message to background');
-    chrome.runtime.sendMessage({
-      action: 'SAVE_RECORDING',
-      data: reader.result
-    });
+  
+  // Generate unique recording ID
+  const recordingId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+  const totalChunks = Math.ceil(blob.size / CHUNK_SIZE);
+  
+  console.log(`Sending ${totalChunks} chunks for recording ${recordingId}`);
+  
+  try {
+    // Send chunks sequentially
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, blob.size);
+      const chunkBlob = blob.slice(start, end);
+      
+      const chunkData = await blobToBase64(chunkBlob);
+      
+      chrome.runtime.sendMessage({
+        action: 'SAVE_RECORDING_CHUNK',
+        recordingId: recordingId,
+        chunkIndex: i,
+        totalChunks: totalChunks,
+        data: chunkData,
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      
+      console.log(`Sent chunk ${i + 1}/${totalChunks}`);
+    }
+    
     // Clear data after sending to free memory
     recordedChunks = [];
     isRecording = false;
-  };
-  reader.onerror = function() {
-    console.error('FileReader error:', reader.error);
+  } catch (error) {
+    console.error('Error processing recording:', error);
     isRecording = false;
-  };
-  reader.readAsDataURL(blob);
+    chrome.runtime.sendMessage({
+      action: 'ERROR',
+      error: 'Failed to process recording: ' + error.message
+    });
+  }
+}
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
 }

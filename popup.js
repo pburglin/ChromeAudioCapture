@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const statusDiv = document.getElementById('status');
+const recordingIndicator = document.getElementById('recordingIndicator');
 
 // Check current status
 chrome.runtime.sendMessage({ action: 'GET_STATUS' }, (response) => {
@@ -63,10 +64,12 @@ if (isRecording) {
 startBtn.disabled = true;
 stopBtn.disabled = false;
 statusDiv.textContent = 'Recording...';
+recordingIndicator.classList.remove('hidden');
 } else {
 startBtn.disabled = false;
 stopBtn.disabled = true;
-statusDiv.textContent = 'Ready';
+statusDiv.textContent = 'Ready to record';
+recordingIndicator.classList.add('hidden');
 }
 }
 

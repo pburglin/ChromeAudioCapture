@@ -27,6 +27,9 @@ A Chrome extension that records audio from browser tabs and saves them locally a
    - Select the folder containing the extension files
    - The extension should now appear in your Chrome toolbar
 
+   ![Extension Setup](ChromeAudioRecorder1.png)
+   *Extension loaded in Chrome toolbar*
+
 4. **Grant Permissions**
    - When you first use the extension, Chrome will ask for permission to capture tab audio
    - Click "Allow" to grant the necessary permissions
@@ -40,6 +43,9 @@ A Chrome extension that records audio from browser tabs and saves them locally a
 3. **Start Recording**: Click "Start Recording" in the extension popup
 4. **Play Audio**: Ensure the tab is playing audio you want to capture
 5. **Status Indicator**: Extension icon shows "REC" badge during recording
+
+   ![Recording Interface](ChromeAudioRecorder2.png)
+   *Extension popup showing recording controls and status*
 
 ### Stopping a Recording
 
